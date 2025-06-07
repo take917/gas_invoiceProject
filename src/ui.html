@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top" />
+  </head>
+  <body>
+    <h2>請求書作成フォーム</h2>
+    <label>会社名</label>
+    <select id="company"></select
+    ><br /><br />
+
+    <label>件名</label>
+    <input type="text" id="subject" /><br /><br />
+
+    <label>金額（税込）</label>
+    <input type="number" id="price" /><br /><br />
+
+    <label>内訳</label>
+    <div id="breakdownSelection"></div>
+    <button onclick="addBreakdown()">+内訳追加</button><br /><br />
+
+    <label>振込先</label>
+    <select id="bank"></select
+    ><br /><br />
+
+    <label>備考</label>
+    <input type="text" id="remarks" /><br /><br />
+
+    <label>請求日</label>
+    <input type="text" id="remarks" /><br /><br />
+
+    <button onclick="submitFrom()">作成</button>
+
+    <script>
+      function submitFrom() {
+        const data = {
+          company: document.getElementById("company").value,
+          subject: document.getElementById("subject").value,
+          price: document.getElementById("price").value,
+          breakdown: [],
+          bank: document.getElementById("bank").value,
+          remarks: document.getElementById("remarks").value,
+          date: document.getElementById("date").value,
+        };
+
+        google.script.run
+          .WithSuccessHandler(() => {
+            alert("請求書作成しました！");
+            google.script.host.close();
+          })
+          .processInvoice(data);
+      }
+
+      function addBreakdown() {
+        const section = document.getElementById("breakdownSection");
+        const div = document.createElement("div");
+        div.innerHTML = `
+          <input placeholder="項目"/>
+          <input type="number" placeholder="数量"/>
+          <input type="number"placeholder="単価"/>
+          <br>`;
+        section.appendChild(div);
+      }
+    </script>
+  </body>
+</html>
