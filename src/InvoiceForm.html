@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top" />
+    <style>
+      body {
+        font-family: Arial;
+        padding: 20px;
+      }
+      select,
+      input,
+      textarea {
+        width: 100%;
+        margin-bottom: 10px;
+        padding: 6px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 10px;
+      }
+      th,
+      td {
+        border: 1px solid #ccc;
+        padding: 4px;
+        text-align: center;
+      }
+      .button {
+        background-color: #4cae50;
+        color: white;
+        padding: 10px;
+        border: none;
+        cursor: pointer;
+      }
+      .button:hover {
+        background-color: #45a049;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>請求書作成フォーム</h2>
+    <label>会社名</label>
+    <select id="company"></select>
+    <label>件名</label>
+    <input type="text" id="subject" />
+    <label>金額（税込）</label>
+    <input type="number" id="includingPrice" />
+    <label>備考</label>
+    <select id="remarks"></select>
+    <button onclick="addBreakdown()">+内訳追加</button><br /><br />
+
+    <label>振込先</label>
+    <select id="transferAccount"></select>
+
+    <label>内訳</label>
+    <div id="breakdown-container"></div>
+    <button type="button" onclick="addBreakdownRow()">+内訳を追加</button>
+
+    <br /><br />
+    <label>請求日</label>
+    <input type="date" id="invoiceDay" />
+    <button onclick="submitForm()">作成</button>
+
+    <script>
+      function addBreakdownRow() {
+        const container = document.getElementById("breakdown-container");
+        const row = document.createElement("div");
+        row.innerHTML = `
+        <table>
+          <tr>
+            <td>件名</td>
+            <td><input type="text" name="itemSubject" /></td>
+            <td>タイトル</td>
+            <td><input type="text" name="itemTitle" /></td>
+            <td>数量</td>
+            <td><input type="number" name="itemQty" value="1" /></td>
+            <td>単価</td>
+            <td><input type="number" name="itemUnitPrice" value="10000" /></td>
+          </tr>
+        </table>
+        `;
+        container.appendChild(row);
+      }
+
+      function submitForm() {
+        const data = {
+          company: document.getElementById("company").value,
+          subject: document.getElementById("subject").value,
+          includingPrice: document.getElementById("includingPrice").value,
+          remarks: document.getElementById("remarks").value,
+          transferAccount: document.getElementById("transferAccount").value,
+          breakdown: [],
+          // date: document.getElementById("date").value,
+        };
+
+        document
+          .querySelectorAll("#breakdown-container table")
+          .forEach((table) => {
+            const inputs = table.querySelectorAll("input");
+            data.breakdown.push({
+              itemsSubject: inputs[0].value,
+              itemTitle: inputs[1].value,
+              qty: Number(inputs[2].value),
+              unitPrice: Number(inputs[3].value),
+            });
+          });
+
+        google.script.run
+          .withSuccessHandler(() => {
+            alert("請求書作成しました！");
+            google.script.host.close();
+          })
+          .processInvoiceForm(data);
+      }
+
+      google.script.run
+        .withSuccessHandler(function (values) {
+          populateSelect("company", values.companies);
+          populateSelect("remarks", values.remarks);
+          populateSelect("transferAccount", values.accounts);
+        })
+        .getFormOptions();
+
+      function populateSelect(id, options) {
+        const select = document.getElementById(id);
+        options.forEach((value) => {
+          const option = document.createElement("option");
+          option.value = value;
+          option.text = value;
+          select.add(option);
+        });
+      }
+    </script>
+  </body>
+</html>
