@@ -35,81 +35,213 @@
       .button:hover {
         background-color: #45a049;
       }
+      .total {
+        text-align: center;
+        font-weight: bold;
+        margin-top: 10px;
+      }
+
+      input[type="number"] {
+        box-sizing: border-box;
+      }
+      .itemSubjectInput {
+        box-sizing: border-box;
+      }
     </style>
   </head>
   <body>
     <h2>請求書作成フォーム</h2>
     <label>会社名</label>
     <select id="company"></select>
+
     <label>件名</label>
     <input type="text" id="subject" />
-    <label>金額（税込）</label>
-    <input type="number" id="includingPrice" />
+
+    <!-- <label>金額（税込）</label>
+    <input type="number" id="includingPrice" /> -->
+
+    <button type="button" onclick="addBreakdownRow()">+内訳追加</button>
+
+    <div id="breakdown-container"></div>
+    <div class="total">総合計金額:<span id="totalAmount">¥0</span></div>
+
     <label>備考</label>
     <select id="remarks"></select>
-    <button onclick="addBreakdown()">+内訳追加</button><br /><br />
 
     <label>振込先</label>
     <select id="transferAccount"></select>
 
-    <label>内訳</label>
-    <div id="breakdown-container"></div>
-    <button type="button" onclick="addBreakdownRow()">+内訳を追加</button>
-
-    <br /><br />
     <label>請求日</label>
     <input type="date" id="invoiceDay" />
-    <button onclick="submitForm()">作成</button>
 
+    <button type="button" onclick="submitForm(event)">作成</button>
+    <div id="statusMessage" style="margin-top: 10px; color: green"></div>
     <script>
+      let itemMaster = {};
       function addBreakdownRow() {
         const container = document.getElementById("breakdown-container");
+
         const row = document.createElement("div");
         row.innerHTML = `
         <table>
           <tr>
-            <td>件名</td>
-            <td><input type="text" name="itemSubject" /></td>
-            <td>タイトル</td>
-            <td><input type="text" name="itemTitle" /></td>
-            <td>数量</td>
-            <td><input type="number" name="itemQty" value="1" /></td>
-            <td>単価</td>
-            <td><input type="number" name="itemUnitPrice" value="10000" /></td>
-          </tr>
+            <td>詳細</td>
+            <td>
+              <select class="itemSubject" onchange="updateUnitPrice(this)" style="width: 100%">
+              <option value="">--項目を選択--</option>
+                ${Object.keys(itemMaster)
+                  .map((key) => `<option value="${key}">${key}</option>`)
+                  .join("")}
+                <option value="その他">その他</option> 
+              </select>
+              <input type="text" class="itemSubjectInput" style="display:none;  width: 100%;" placeholder="項目を入力">
+              </td>
+              <td>単価</td>
+              <td><input type="number" class="itemUnitPrice" value="0" style="width:80px;"/></td>
+              <td>数量</td>
+              <td><input type="number" class="itemQty" value="0"  oninput="updateRowTotal(this)" style="width:60px;"/></td>
+             <td>合計</td>
+            <td><input type="number" class="itemTotal" value="0" readonly style="width:80px;"/></td>
+          <td>
+      <button onclick="removeRow(this)">削除</button>
+    </td>
+          
+          
+            </tr>
         </table>
         `;
         container.appendChild(row);
+
+        const subjectSelect = row.querySelector(".itemSubject");
+        updateUnitPrice(subjectSelect);
       }
 
-      function submitForm() {
+      function updateUnitPrice(selectEl) {
+        const row = selectEl.closest("tr");
+        const subjectInput = row.querySelector(".itemSubjectInput");
+        const unitPriceInput = row.querySelector(".itemUnitPrice");
+        const qtyInput = row.querySelector(".itemQty");
+        const totalInput = row.querySelector(".itemTotal");
+
+        const subject = selectEl.value;
+
+        if (!subject) {
+          subjectInput.style.display = "none";
+          unitPriceInput.value = 0;
+          totalInput.value = 0;
+          updateTotalAmount();
+          return;
+        }
+
+        if (subject === "その他") {
+          subjectInput.style.display = " inline-block";
+          selectEl.style.display = "none";
+          unitPriceInput.removeAttribute("readonly");
+          unitPriceInput.value = 0;
+        } else {
+          subjectInput.style.display = "none";
+          selectEl.style.display = "inline-block";
+          subjectInput.value = "";
+          unitPriceInput.setAttribute("readonly", true);
+          const price = parseInt(itemMaster[subject] || 0, 10);
+          unitPriceInput.value = price;
+        }
+
+        const qty = parseInt(qtyInput.value || 0, 10);
+        const total = parseInt(unitPriceInput.value || 0, 10) * qty;
+        totalInput.value = total;
+        updateTotalAmount();
+      }
+
+      function updateRowTotal(inputEl) {
+        const row = inputEl.closest("tr");
+        const unitPrice = parseInt(
+          row.querySelector(".itemUnitPrice").value,
+          10
+        );
+        const qrt = parseInt(inputEl.value || 0, 10);
+        const total = unitPrice * qrt;
+        row.querySelector(".itemTotal").value = total;
+        updateTotalAmount();
+      }
+
+      function updateTotalAmount() {
+        let sum = 0;
+        document.querySelectorAll(".itemTotal").forEach((input) => {
+          sum += parseInt(input.value || 0, 10);
+        });
+        document.getElementById(
+          "totalAmount"
+        ).textContent = `¥${sum.toLocaleString()}`;
+      }
+
+      function submitForm(e) {
+        if (e) {
+          e.preventDefault();
+        }
+
+        const submitButton = document.querySelector(
+          'button[onclick="submitForm(event)"]'
+        );
+        const status = document.getElementById("statusMessage");
+
+        submitButton.disabled = true;
+        status.textContent = "ただいま請求書作成中・・・";
+
         const data = {
           company: document.getElementById("company").value,
           subject: document.getElementById("subject").value,
-          includingPrice: document.getElementById("includingPrice").value,
           remarks: document.getElementById("remarks").value,
           transferAccount: document.getElementById("transferAccount").value,
+          invoiceDay: document.getElementById("invoiceDay").value,
           breakdown: [],
-          // date: document.getElementById("date").value,
         };
+        let totalAmount = 0;
 
         document
           .querySelectorAll("#breakdown-container table")
           .forEach((table) => {
-            const inputs = table.querySelectorAll("input");
+            const subjectSelect = table.querySelector(".itemSubject");
+            const subjectValue =
+              subjectSelect.value === "その他"
+                ? table.querySelector(".itemSubjectInput").value
+                : subjectSelect.value;
+            const unitPrice = parseInt(
+              table.querySelector(".itemUnitPrice").value,
+              10
+            );
+            const qty = parseInt(table.querySelector(".itemQty").value, 10);
+            const rowTotal = parseInt(
+              table.querySelector(".itemTotal").value,
+              10
+            );
+
             data.breakdown.push({
-              itemsSubject: inputs[0].value,
-              itemTitle: inputs[1].value,
-              qty: Number(inputs[2].value),
-              unitPrice: Number(inputs[3].value),
+              itemsSubject: subjectValue,
+              itemTitle: "",
+              unitPrice,
+              qty,
+              total: rowTotal,
             });
+
+            totalAmount += rowTotal;
           });
+
+        data.totalAmount = totalAmount.toLocaleString();
 
         google.script.run
           .withSuccessHandler(() => {
-            alert("請求書作成しました！");
-            google.script.host.close();
+            status.style.color = "green";
+            status.textContent = " 請求書を作成しました";
+            submitButton.disabled = false;
+            setTimeout(() => google.script.host.close(), 1500);
           })
+          .withFailureHandler((err) => {
+            status.style.color = "red";
+            status.textContent = "エラーが発生しました" + err.message;
+            submitButton.disabled = false;
+          })
+
           .processInvoiceForm(data);
       }
 
@@ -118,16 +250,35 @@
           populateSelect("company", values.companies);
           populateSelect("remarks", values.remarks);
           populateSelect("transferAccount", values.accounts);
+
+          // 件名＋単価マスタの取得（仮に getItemMaster 関数が GAS 側にあるとする）
+          google.script.run
+            .withSuccessHandler(function (master) {
+              itemMaster = master; // { "デザイン作業一式": 10000, ... }
+            })
+            .getItemMaster();
         })
         .getFormOptions();
 
+      function removeRow(buttonEl) {
+        const row = buttonEl.closest("div");
+        row.remove();
+        updateTotalAmount();
+      }
+
       function populateSelect(id, options) {
         const select = document.getElementById(id);
+
+        const blankOption = document.createElement("option");
+        blankOption.value = "";
+        blankOption.textContent = "--選択してください";
+        select.appendChild(blankOption);
+
         options.forEach((value) => {
           const option = document.createElement("option");
           option.value = value;
-          option.text = value;
-          select.add(option);
+          option.textContent = value;
+          select.appendChild(option);
         });
       }
     </script>
